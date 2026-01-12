@@ -58,12 +58,16 @@ function saveTransaction() {
         $totalItem = intval($data['total_item'] ?? 0);
         $kembalian = $metode === 'tunai' ? ($uangDiterima - $totalHarga) : 0;
         
-        // Validate stock
+        // Validate stock and get harga_modal
+        $itemsWithModal = [];
         foreach ($items as $item) {
-            $produk = fetchOne("SELECT stok FROM produk WHERE id = ?", [$item['produk_id']]);
+            $produk = fetchOne("SELECT stok, harga_modal FROM produk WHERE id = ?", [$item['produk_id']]);
             if (!$produk || $produk['stok'] < $item['jumlah']) {
                 throw new Exception('Stok ' . $item['nama_produk'] . ' tidak mencukupi');
             }
+            $item['harga_modal'] = $produk['harga_modal'];
+            $item['laba'] = ($item['harga'] - $produk['harga_modal']) * $item['jumlah'];
+            $itemsWithModal[] = $item;
         }
         
         $pdo->beginTransaction();
@@ -79,12 +83,12 @@ function saveTransaction() {
         $transaksiId = lastInsertId();
         
         // Insert items and update stock
-        foreach ($items as $item) {
-            // Insert detail
-            query("INSERT INTO detail_transaksi (transaksi_id, produk_id, kode_produk, nama_produk, harga_satuan, jumlah, subtotal) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?)",
+        foreach ($itemsWithModal as $item) {
+            // Insert detail with harga_modal and laba
+            query("INSERT INTO detail_transaksi (transaksi_id, produk_id, kode_produk, nama_produk, harga_satuan, harga_modal, jumlah, subtotal, laba) 
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [$transaksiId, $item['produk_id'], $item['kode_produk'], $item['nama_produk'], 
-                 $item['harga'], $item['jumlah'], $item['subtotal']]);
+                 $item['harga'], $item['harga_modal'], $item['jumlah'], $item['subtotal'], $item['laba']]);
             
             // Get current stock
             $produk = fetchOne("SELECT stok FROM produk WHERE id = ?", [$item['produk_id']]);

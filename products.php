@@ -23,6 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $kode = trim($_POST['kode_produk']);
         $nama = trim($_POST['nama_produk']);
         $kategori_id = $_POST['kategori_id'] ?: null;
+        $harga_modal = floatval($_POST['harga_modal']);
         $harga = floatval($_POST['harga_jual']);
         $stok = intval($_POST['stok']);
         
@@ -32,8 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Kode produk sudah digunakan!';
             $messageType = 'danger';
         } else {
-            query("INSERT INTO produk (kode_produk, nama_produk, kategori_id, harga_jual, stok) VALUES (?, ?, ?, ?, ?)",
-                [$kode, $nama, $kategori_id, $harga, $stok]);
+            query("INSERT INTO produk (kode_produk, nama_produk, kategori_id, harga_modal, harga_jual, stok) VALUES (?, ?, ?, ?, ?, ?)",
+                [$kode, $nama, $kategori_id, $harga_modal, $harga, $stok]);
             
             // Catat riwayat stok
             $produkId = lastInsertId();
@@ -51,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $kode = trim($_POST['kode_produk']);
         $nama = trim($_POST['nama_produk']);
         $kategori_id = $_POST['kategori_id'] ?: null;
+        $harga_modal = floatval($_POST['harga_modal']);
         $harga = floatval($_POST['harga_jual']);
         
         // Cek kode unik (exclude current)
@@ -59,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Kode produk sudah digunakan!';
             $messageType = 'danger';
         } else {
-            query("UPDATE produk SET kode_produk = ?, nama_produk = ?, kategori_id = ?, harga_jual = ? WHERE id = ?",
-                [$kode, $nama, $kategori_id, $harga, $id]);
+            query("UPDATE produk SET kode_produk = ?, nama_produk = ?, kategori_id = ?, harga_modal = ?, harga_jual = ? WHERE id = ?",
+                [$kode, $nama, $kategori_id, $harga_modal, $harga, $id]);
             $message = 'Produk berhasil diperbarui!';
             $messageType = 'success';
         }
@@ -182,7 +184,9 @@ include 'includes/header.php';
                             <th width="120">Kode</th>
                             <th>Nama Produk</th>
                             <th>Kategori</th>
+                            <th class="text-end">Modal</th>
                             <th class="text-end">Harga Jual</th>
+                            <th class="text-center">Margin</th>
                             <th class="text-center">Stok</th>
                             <th class="text-center">Status</th>
                             <th width="150" class="text-center">Aksi</th>
@@ -190,13 +194,23 @@ include 'includes/header.php';
                     </thead>
                     <tbody>
                         <?php if (count($produk) > 0): ?>
-                        <?php foreach ($produk as $index => $item): ?>
+                        <?php foreach ($produk as $index => $item): 
+                            $margin = $item['harga_modal'] > 0 ? (($item['harga_jual'] - $item['harga_modal']) / $item['harga_modal'] * 100) : 0;
+                        ?>
                         <tr class="<?= $item['status'] === 'nonaktif' ? 'table-secondary' : '' ?>">
                             <td><?= $index + 1 ?></td>
                             <td><code><?= escape($item['kode_produk']) ?></code></td>
                             <td><?= escape($item['nama_produk']) ?></td>
                             <td><?= escape($item['nama_kategori'] ?? '-') ?></td>
+                            <td class="text-end text-muted"><?= formatRupiah($item['harga_modal']) ?></td>
                             <td class="text-end"><?= formatRupiah($item['harga_jual']) ?></td>
+                            <td class="text-center">
+                                <?php if ($margin > 0): ?>
+                                <span class="badge bg-success"><?= number_format($margin, 1) ?>%</span>
+                                <?php else: ?>
+                                <span class="badge bg-secondary">-</span>
+                                <?php endif; ?>
+                            </td>
                             <td class="text-center">
                                 <?php if ($item['stok'] < 10): ?>
                                 <span class="badge bg-danger"><?= $item['stok'] ?></span>
@@ -225,7 +239,7 @@ include 'includes/header.php';
                         <?php endforeach; ?>
                         <?php else: ?>
                         <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
+                            <td colspan="10" class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox display-4"></i>
                                 <p class="mb-0 mt-2">Tidak ada produk ditemukan</p>
                             </td>
@@ -272,12 +286,25 @@ include 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control" name="harga_jual" required min="0">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Harga Modal <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_modal" required min="0" id="addHargaModal">
+                            </div>
+                            <small class="text-muted">Harga beli/kulakan</small>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_jual" required min="0" id="addHargaJual">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-info py-2 mb-3" id="addMarginInfo" style="display:none;">
+                        <small><i class="bi bi-info-circle me-1"></i>Margin: <strong id="addMarginValue">0%</strong> | Laba/item: <strong id="addLabaValue">Rp 0</strong></small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Stok Awal</label>
@@ -325,14 +352,26 @@ include 'includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control" name="harga_jual" id="editHarga" required min="0">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Harga Modal <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_modal" id="editHargaModal" required min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Harga Jual <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rp</span>
+                                <input type="number" class="form-control" name="harga_jual" id="editHarga" required min="0">
+                            </div>
                         </div>
                     </div>
-                    <div class="alert alert-info">
+                    <div class="alert alert-info py-2 mb-3" id="editMarginInfo" style="display:none;">
+                        <small><i class="bi bi-info-circle me-1"></i>Margin: <strong id="editMarginValue">0%</strong> | Laba/item: <strong id="editLabaValue">Rp 0</strong></small>
+                    </div>
+                    <div class="alert alert-secondary">
                         <i class="bi bi-info-circle me-1"></i>
                         Untuk mengubah stok, gunakan menu <a href="stock.php">Manajemen Stok</a>
                     </div>
@@ -356,12 +395,95 @@ include 'includes/header.php';
 </form>
 
 <script>
+// Format rupiah
+function formatRupiahJS(angka) {
+    return 'Rp ' + new Intl.NumberFormat('id-ID').format(angka);
+}
+
+// Calculate margin
+function calculateMargin(modal, jual, marginEl, labaEl, infoEl) {
+    modal = parseFloat(modal) || 0;
+    jual = parseFloat(jual) || 0;
+    
+    if (modal > 0 && jual > 0) {
+        const laba = jual - modal;
+        const margin = (laba / modal * 100).toFixed(1);
+        
+        marginEl.textContent = margin + '%';
+        labaEl.textContent = formatRupiahJS(laba);
+        infoEl.style.display = 'block';
+        
+        // Color coding
+        if (laba < 0) {
+            infoEl.className = 'alert alert-danger py-2 mb-3';
+        } else if (margin < 10) {
+            infoEl.className = 'alert alert-warning py-2 mb-3';
+        } else {
+            infoEl.className = 'alert alert-success py-2 mb-3';
+        }
+    } else {
+        infoEl.style.display = 'none';
+    }
+}
+
+// Add modal margin calculator
+document.getElementById('addHargaModal').addEventListener('input', function() {
+    calculateMargin(
+        this.value,
+        document.getElementById('addHargaJual').value,
+        document.getElementById('addMarginValue'),
+        document.getElementById('addLabaValue'),
+        document.getElementById('addMarginInfo')
+    );
+});
+
+document.getElementById('addHargaJual').addEventListener('input', function() {
+    calculateMargin(
+        document.getElementById('addHargaModal').value,
+        this.value,
+        document.getElementById('addMarginValue'),
+        document.getElementById('addLabaValue'),
+        document.getElementById('addMarginInfo')
+    );
+});
+
+// Edit modal margin calculator
+document.getElementById('editHargaModal').addEventListener('input', function() {
+    calculateMargin(
+        this.value,
+        document.getElementById('editHarga').value,
+        document.getElementById('editMarginValue'),
+        document.getElementById('editLabaValue'),
+        document.getElementById('editMarginInfo')
+    );
+});
+
+document.getElementById('editHarga').addEventListener('input', function() {
+    calculateMargin(
+        document.getElementById('editHargaModal').value,
+        this.value,
+        document.getElementById('editMarginValue'),
+        document.getElementById('editLabaValue'),
+        document.getElementById('editMarginInfo')
+    );
+});
+
 function editProduct(product) {
     document.getElementById('editId').value = product.id;
     document.getElementById('editKode').value = product.kode_produk;
     document.getElementById('editNama').value = product.nama_produk;
     document.getElementById('editKategori').value = product.kategori_id || '';
+    document.getElementById('editHargaModal').value = product.harga_modal;
     document.getElementById('editHarga').value = product.harga_jual;
+    
+    // Calculate margin on load
+    calculateMargin(
+        product.harga_modal,
+        product.harga_jual,
+        document.getElementById('editMarginValue'),
+        document.getElementById('editLabaValue'),
+        document.getElementById('editMarginInfo')
+    );
     
     new bootstrap.Modal(document.getElementById('editModal')).show();
 }

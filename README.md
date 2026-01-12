@@ -34,6 +34,8 @@ Membantu transaksi penjualan warung koperasi dengan sistem POS yang:
 - Tambah, edit, hapus produk
 - Kode produk unik (angka, huruf, atau kombinasi)
 - Set nama, harga jual, dan stok
+- **💰 Harga Modal** - Input harga beli/modal produk
+- **📊 Margin Laba** - Kalkulasi otomatis margin % dan laba per produk
 - Kategori produk
 
 ### 📊 Manajemen Stok (Admin)
@@ -45,15 +47,17 @@ Membantu transaksi penjualan warung koperasi dengan sistem POS yang:
 ### 📈 Laporan Penjualan
 - Laporan harian/mingguan/bulanan
 - Total omzet dan transaksi
+- **💰 Perhitungan Laba** - Total Modal, Total Laba, Margin % per periode
 - **📊 Breakdown Metode Pembayaran** - Kolom terpisah untuk Tunai, QRIS, Transfer
-- Produk terlaris
-- Penjualan per kategori
-- **📥 Download Excel/CSV** - Export laporan dalam format spreadsheet
+- Produk terlaris dengan info laba per produk
+- Penjualan per kategori dengan laba
+- **📥 Download Excel/CSV** - Export laporan dengan data laba lengkap
 - Filter cepat: Hari ini, 7 hari terakhir, Bulan ini, Bulan lalu
 
 ### 📒 Tutup Buku Bulanan (Admin)
 - Rekap data penjualan per bulan
 - Simpan arsip omzet, transaksi, dan item terjual
+- **💰 Rekap Laba** - Total Modal, Total Laba, Margin % per bulan
 - Pisah laporan tunai vs non-tunai (QRIS + Transfer)
 - Download rekap periode yang sudah ditutup
 - Riwayat tutup buku lengkap
@@ -85,7 +89,7 @@ Membantu transaksi penjualan warung koperasi dengan sistem POS yang:
        │
        ▼
 ┌─────────────┐
-│  DASHBOARD  │ ◄── Statistik hari ini, quick actions, reminder tutup buku
+│  DASHBOARD  │ ◄── Statistik hari ini (omzet, laba), quick actions, reminder tutup buku
 └──────┬──────┘
        │
        ├────────────────┬────────────────┬────────────────┐
@@ -215,9 +219,9 @@ POS-Koperasi-Sederhana/
 │ username     │     │ nama_kategori│◄────│ kategori_id  │
 │ password     │     │ created_at   │     │ kode_produk  │
 │ nama_lengkap │     └──────────────┘     │ nama_produk  │
-│ role         │                          │ harga_jual   │
-│ status       │                          │ stok         │
-└──────┬───────┘                          │ status       │
+│ role         │                          │ harga_modal  │
+│ status       │                          │ harga_jual   │
+└──────┬───────┘                          │ stok, status │
        │                                  └──────┬───────┘
        │                                         │
        │     ┌──────────────┐                    │
@@ -230,8 +234,9 @@ POS-Koperasi-Sederhana/
        │     │ (tunai/qris/ │     ├──────────────────┤
        │     │  transfer)   │     │ transaksi_id     │◄──┘
        │     └──────┬───────┘     │ produk_id        │
-       │            │             │ jumlah           │
-       │            └────────────►│ subtotal         │
+       │            │             │ harga_modal      │
+       │            └────────────►│ jumlah, subtotal │
+       │                          │ laba             │
        │                          └──────────────────┘
        │                                   │
        │            ┌──────────────────────┘
@@ -244,8 +249,10 @@ POS-Koperasi-Sederhana/
        │     │ jumlah       │     │ total_omzet  │
        │     │ stok_sebelum │     │ total_transaksi│
        │     │ stok_sesudah │     │ total_tunai  │
-       └────►│ user_id      │◄────│ user_id      │
-             └──────────────┘     └──────────────┘
+       └────►│ user_id      │     │ total_modal  │
+             └──────────────┘     │ total_laba   │
+                                  │ user_id      │
+                                  └──────────────┘
 
 ┌──────────────┐
 │   settings   │  ◄── Tabel baru untuk konfigurasi
@@ -338,9 +345,11 @@ Aplikasi dirancang responsif untuk:
 - [x] ~~Export laporan ke Excel/CSV~~ ✅
 - [x] ~~Kustomisasi logo & nama aplikasi~~ ✅
 - [x] ~~Menu dropdown terorganisir~~ ✅
+- [x] ~~Tutup buku bulanan~~ ✅
+- [x] ~~Harga modal dan perhitungan laba~~ ✅
+- [x] ~~Tema warna kustom (ungu pastel)~~ ✅
 - [ ] 🖨️ Cetak struk (thermal printer support)
 - [ ] 📷 Barcode scanner support
-- [ ] 💰 Harga modal dan perhitungan laba
 - [ ] 🏪 Multi-outlet support
 - [ ] 💾 Backup database otomatis
 - [ ] 📧 Notifikasi stok menipis via email/WhatsApp

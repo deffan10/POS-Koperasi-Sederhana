@@ -47,11 +47,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     WHERE DATE(tanggal_transaksi) BETWEEN ? AND ?", 
                                     [$tanggalMulai, $tanggalAkhir]);
                 
-                // Simpan tutup buku
-                query("INSERT INTO tutup_buku (bulan, tahun, total_transaksi, total_omzet, total_item, total_tunai, total_non_tunai, keterangan, user_id) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                // Hitung total modal dan laba dari detail_transaksi
+                $labaSummary = fetchOne("SELECT 
+                                            COALESCE(SUM(dt.harga_modal * dt.jumlah), 0) as total_modal,
+                                            COALESCE(SUM(dt.laba), 0) as total_laba
+                                        FROM detail_transaksi dt
+                                        JOIN transaksi t ON dt.transaksi_id = t.id
+                                        WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?", 
+                                        [$tanggalMulai, $tanggalAkhir]);
+                
+                // Simpan tutup buku dengan modal dan laba
+                query("INSERT INTO tutup_buku (bulan, tahun, total_transaksi, total_omzet, total_item, total_tunai, total_non_tunai, total_modal, total_laba, keterangan, user_id) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [$bulan, $tahun, $summary['total_transaksi'], $summary['total_omzet'], $summary['total_item'], 
-                     $summary['total_tunai'], $summary['total_non_tunai'], $keterangan, $_SESSION['user_id']]);
+                     $summary['total_tunai'], $summary['total_non_tunai'], $labaSummary['total_modal'], $labaSummary['total_laba'], $keterangan, $_SESSION['user_id']]);
                 
                 $message = 'Tutup buku periode ' . getBulanIndo($bulan) . ' ' . $tahun . ' berhasil!';
                 $messageType = 'success';
@@ -139,18 +148,19 @@ include 'includes/header.php';
                     <thead class="table-light">
                         <tr>
                             <th>Periode</th>
-                            <th class="text-center">Transaksi</th>
-                            <th class="text-center">Item</th>
-                            <th class="text-end">Tunai</th>
-                            <th class="text-end">Non-Tunai</th>
-                            <th class="text-end">Total Omzet</th>
-                            <th>Ditutup Oleh</th>
-                            <th>Tanggal</th>
-                            <th width="120"></th>
+                            <th class="text-center">Trx</th>
+                            <th class="text-end">Modal</th>
+                            <th class="text-end">Omzet</th>
+                            <th class="text-end text-success">Laba</th>
+                            <th class="text-center">Margin</th>
+                            <th>Ditutup</th>
+                            <th width="100"></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($tutupBukuList as $tb): ?>
+                        <?php foreach ($tutupBukuList as $tb): 
+                            $margin = $tb['total_omzet'] > 0 ? ($tb['total_laba'] / $tb['total_omzet']) * 100 : 0;
+                        ?>
                         <tr>
                             <td>
                                 <strong><?= getBulanIndo($tb['bulan']) ?> <?= $tb['tahun'] ?></strong>
@@ -161,14 +171,18 @@ include 'includes/header.php';
                             <td class="text-center">
                                 <span class="badge bg-primary"><?= number_format($tb['total_transaksi']) ?></span>
                             </td>
+                            <td class="text-end text-danger"><?= formatRupiah($tb['total_modal'] ?? 0) ?></td>
+                            <td class="text-end"><?= formatRupiah($tb['total_omzet']) ?></td>
+                            <td class="text-end fw-bold text-success"><?= formatRupiah($tb['total_laba'] ?? 0) ?></td>
                             <td class="text-center">
-                                <span class="badge bg-info"><?= number_format($tb['total_item']) ?></span>
+                                <span class="badge bg-<?= $margin >= 20 ? 'success' : ($margin >= 10 ? 'warning' : 'danger') ?>">
+                                    <?= number_format($margin, 1) ?>%
+                                </span>
                             </td>
-                            <td class="text-end"><?= formatRupiah($tb['total_tunai']) ?></td>
-                            <td class="text-end"><?= formatRupiah($tb['total_non_tunai']) ?></td>
-                            <td class="text-end fw-bold text-success"><?= formatRupiah($tb['total_omzet']) ?></td>
-                            <td><?= escape($tb['nama_lengkap']) ?></td>
-                            <td><small><?= date('d/m/Y H:i', strtotime($tb['created_at'])) ?></small></td>
+                            <td>
+                                <small><?= escape($tb['nama_lengkap']) ?></small><br>
+                                <small class="text-muted"><?= date('d/m/Y', strtotime($tb['created_at'])) ?></small>
+                            </td>
                             <td>
                                 <div class="btn-group">
                                     <a href="api/export.php?format=excel&type=summary&tanggal_mulai=<?= sprintf('%04d-%02d-01', $tb['tahun'], $tb['bulan']) ?>&tanggal_akhir=<?= date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $tb['tahun'], $tb['bulan']))) ?>" 

@@ -19,6 +19,16 @@ $result = fetchOne("SELECT COUNT(*) as total, COALESCE(SUM(total_harga), 0) as o
 $stats['transaksi_hari_ini'] = $result['total'];
 $stats['omzet_hari_ini'] = $result['omzet'];
 
+// Laba hari ini (hanya untuk admin)
+$stats['laba_hari_ini'] = 0;
+if (isAdmin()) {
+    $labaHariIni = fetchOne("SELECT COALESCE(SUM(dt.laba), 0) as laba 
+                            FROM detail_transaksi dt 
+                            JOIN transaksi t ON dt.transaksi_id = t.id 
+                            WHERE DATE(t.tanggal_transaksi) = ?", [$today]);
+    $stats['laba_hari_ini'] = $labaHariIni['laba'];
+}
+
 // Total produk
 $stats['total_produk'] = fetchOne("SELECT COUNT(*) as total FROM produk WHERE status = 'aktif'")['total'];
 
@@ -106,7 +116,7 @@ include 'includes/header.php';
                 <h2 class="mb-1">
                     <i class="bi bi-emoji-smile me-2"></i>Selamat Datang, <?= escape($_SESSION['nama_lengkap']) ?>!
                 </h2>
-                <p class="mb-0 text-muted"><?= date('l, d F Y') ?></p>
+                <p class="mb-0" style="opacity: 0.85;"><?= date('l, d F Y') ?></p>
             </div>
         </div>
     </div>
@@ -147,6 +157,19 @@ include 'includes/header.php';
             </div>
         </div>
         
+        <?php if (isAdmin()): ?>
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="stat-card" style="border-left: 4px solid #198754; background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);">
+                <div class="stat-icon" style="color: #198754;">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value text-success"><?= formatRupiah($stats['laba_hari_ini']) ?></h3>
+                    <p class="stat-label">Laba Hari Ini</p>
+                </div>
+            </div>
+        </div>
+        <?php else: ?>
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="stat-card stat-card-primary">
                 <div class="stat-icon">
@@ -158,6 +181,7 @@ include 'includes/header.php';
                 </div>
             </div>
         </div>
+        <?php endif; ?>
         
         <div class="col-xl-3 col-md-6 mb-3">
             <div class="stat-card stat-card-info">

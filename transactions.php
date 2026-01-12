@@ -221,12 +221,17 @@ function viewDetail(id) {
                                 <th class="text-end">Harga</th>
                                 <th class="text-center">Qty</th>
                                 <th class="text-end">Subtotal</th>
+                                <?php if (isAdmin()): ?>
+                                <th class="text-end text-success">Laba</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody>
                 `;
                 
+                let totalLaba = 0;
                 items.forEach(item => {
+                    totalLaba += parseFloat(item.laba || 0);
                     html += `
                         <tr>
                             <td><code>${item.kode_produk}</code></td>
@@ -234,6 +239,9 @@ function viewDetail(id) {
                             <td class="text-end">${formatRupiah(item.harga_satuan)}</td>
                             <td class="text-center">${item.jumlah}</td>
                             <td class="text-end">${formatRupiah(item.subtotal)}</td>
+                            <?php if (isAdmin()): ?>
+                            <td class="text-end text-success">${formatRupiah(item.laba || 0)}</td>
+                            <?php endif; ?>
                         </tr>
                     `;
                 });
@@ -244,6 +252,9 @@ function viewDetail(id) {
                             <tr>
                                 <td colspan="4" class="text-end"><strong>TOTAL</strong></td>
                                 <td class="text-end"><strong>${formatRupiah(trx.total_harga)}</strong></td>
+                                <?php if (isAdmin()): ?>
+                                <td class="text-end"><strong>${formatRupiah(totalLaba)}</strong></td>
+                                <?php endif; ?>
                             </tr>
                         </tfoot>
                     </table>

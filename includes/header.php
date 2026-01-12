@@ -30,7 +30,7 @@ $appFavicon = getSetting('app_favicon', '');
 <body>
     <?php if (isLoggedIn()): ?>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-success sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background-color: #5D4E6D;">
         <div class="container-fluid">
             <a class="navbar-brand fw-bold d-flex align-items-center" href="dashboard.php">
                 <?php if ($appLogo && file_exists($appLogo)): ?>
@@ -140,6 +140,11 @@ $appFavicon = getSetting('app_favicon', '');
                         </ul>
                     </li>
                     <?php endif; ?>
+                    <li class="nav-item">
+                        <a href="https://ksp-alfarma.ummada.ac.id" class="nav-link text-white" target="_blank">
+                            <i class="bi bi-building"></i> KSP
+                        </a>
+                    </li>
                 </ul>
                 
                 <ul class="navbar-nav">
@@ -147,7 +152,7 @@ $appFavicon = getSetting('app_favicon', '');
                         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle me-1"></i>
                             <?= escape($_SESSION['nama_lengkap']) ?>
-                            <span class="badge bg-light text-success ms-1"><?= ucfirst($_SESSION['role']) ?></span>
+                            <span class="badge bg-light ms-1" style="color: #5D4E6D;"><?= ucfirst($_SESSION['role']) ?></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text text-muted small">Login sebagai <?= ucfirst($_SESSION['role']) ?></span></li>

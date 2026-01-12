@@ -13,29 +13,50 @@ $pageTitle = 'Laporan Penjualan';
 $tanggalMulai = $_GET['tanggal_mulai'] ?? date('Y-m-d');
 $tanggalAkhir = $_GET['tanggal_akhir'] ?? date('Y-m-d');
 
-// Get summary
+// Get summary with laba
 $summary = fetchOne("SELECT 
-                        COUNT(*) as total_transaksi,
-                        COALESCE(SUM(total_harga), 0) as total_omzet,
-                        COALESCE(SUM(total_item), 0) as total_item,
-                        COALESCE(AVG(total_harga), 0) as rata_rata
-                    FROM transaksi 
-                    WHERE DATE(tanggal_transaksi) BETWEEN ? AND ?", 
-                    [$tanggalMulai, $tanggalAkhir]);
+                        COUNT(DISTINCT t.id) as total_transaksi,
+                        COALESCE(SUM(t.total_harga), 0) as total_omzet,
+                        COALESCE(SUM(t.total_item), 0) as total_item,
+                        COALESCE(AVG(t.total_harga), 0) as rata_rata,
+                        COALESCE((SELECT SUM(dt.harga_modal * dt.jumlah) FROM detail_transaksi dt JOIN transaksi t2 ON dt.transaksi_id = t2.id WHERE DATE(t2.tanggal_transaksi) BETWEEN ? AND ?), 0) as total_modal,
+                        COALESCE((SELECT SUM(dt.laba) FROM detail_transaksi dt JOIN transaksi t2 ON dt.transaksi_id = t2.id WHERE DATE(t2.tanggal_transaksi) BETWEEN ? AND ?), 0) as total_laba
+                    FROM transaksi t
+                    WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?", 
+                    [$tanggalMulai, $tanggalAkhir, $tanggalMulai, $tanggalAkhir, $tanggalMulai, $tanggalAkhir]);
 
-// Get daily summary with payment method breakdown
+// Get daily summary with payment method breakdown and laba
 $dailySummary = fetchAll("SELECT 
-                            DATE(tanggal_transaksi) as tanggal,
-                            COUNT(*) as jumlah_transaksi,
-                            SUM(total_harga) as omzet,
-                            SUM(CASE WHEN metode_pembayaran = 'tunai' THEN total_harga ELSE 0 END) as tunai,
-                            SUM(CASE WHEN metode_pembayaran = 'qris' THEN total_harga ELSE 0 END) as qris,
-                            SUM(CASE WHEN metode_pembayaran = 'transfer' THEN total_harga ELSE 0 END) as transfer
-                         FROM transaksi 
-                         WHERE DATE(tanggal_transaksi) BETWEEN ? AND ?
-                         GROUP BY DATE(tanggal_transaksi)
+                            DATE(t.tanggal_transaksi) as tanggal,
+                            COUNT(DISTINCT t.id) as jumlah_transaksi,
+                            SUM(t.total_harga) as omzet,
+                            SUM(CASE WHEN t.metode_pembayaran = 'tunai' THEN t.total_harga ELSE 0 END) as tunai,
+                            SUM(CASE WHEN t.metode_pembayaran = 'qris' THEN t.total_harga ELSE 0 END) as qris,
+                            SUM(CASE WHEN t.metode_pembayaran = 'transfer' THEN t.total_harga ELSE 0 END) as transfer
+                         FROM transaksi t
+                         WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?
+                         GROUP BY DATE(t.tanggal_transaksi)
                          ORDER BY tanggal DESC", 
                          [$tanggalMulai, $tanggalAkhir]);
+
+// Get daily laba
+$dailyLaba = fetchAll("SELECT 
+                          DATE(t.tanggal_transaksi) as tanggal,
+                          COALESCE(SUM(dt.laba), 0) as laba
+                       FROM detail_transaksi dt
+                       JOIN transaksi t ON dt.transaksi_id = t.id
+                       WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?
+                       GROUP BY DATE(t.tanggal_transaksi)", 
+                       [$tanggalMulai, $tanggalAkhir]);
+
+// Merge laba into daily summary
+$labaByDate = [];
+foreach ($dailyLaba as $dl) {
+    $labaByDate[$dl['tanggal']] = $dl['laba'];
+}
+foreach ($dailySummary as &$day) {
+    $day['laba'] = $labaByDate[$day['tanggal']] ?? 0;
+}
 
 // Get payment method summary
 $paymentSummary = fetchAll("SELECT 
@@ -47,11 +68,12 @@ $paymentSummary = fetchAll("SELECT
                            GROUP BY metode_pembayaran", 
                            [$tanggalMulai, $tanggalAkhir]);
 
-// Get top products
+// Get top products with laba
 $topProducts = fetchAll("SELECT 
                             p.nama_produk,
                             SUM(dt.jumlah) as total_terjual,
-                            SUM(dt.subtotal) as total_pendapatan
+                            SUM(dt.subtotal) as total_pendapatan,
+                            SUM(dt.laba) as total_laba
                         FROM detail_transaksi dt
                         JOIN produk p ON dt.produk_id = p.id
                         JOIN transaksi t ON dt.transaksi_id = t.id
@@ -61,11 +83,12 @@ $topProducts = fetchAll("SELECT
                         LIMIT 10", 
                         [$tanggalMulai, $tanggalAkhir]);
 
-// Get category summary
+// Get category summary with laba
 $categorySummary = fetchAll("SELECT 
                                COALESCE(k.nama_kategori, 'Tanpa Kategori') as kategori,
                                SUM(dt.jumlah) as total_terjual,
-                               SUM(dt.subtotal) as total_pendapatan
+                               SUM(dt.subtotal) as total_pendapatan,
+                               SUM(dt.laba) as total_laba
                             FROM detail_transaksi dt
                             JOIN produk p ON dt.produk_id = p.id
                             LEFT JOIN kategori k ON p.kategori_id = k.id
@@ -168,7 +191,7 @@ include 'includes/header.php';
     
     <!-- Summary Cards -->
     <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-2 col-md-4 mb-3">
             <div class="stat-card stat-card-success">
                 <div class="stat-icon">
                     <i class="bi bi-cash-stack"></i>
@@ -180,7 +203,31 @@ include 'includes/header.php';
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stat-card stat-card-danger">
+                <div class="stat-icon">
+                    <i class="bi bi-cart-dash"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value"><?= formatRupiah($summary['total_modal']) ?></h3>
+                    <p class="stat-label">Total Modal</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="stat-card" style="border-left: 4px solid #198754; background: linear-gradient(135deg, #d1e7dd 0%, #badbcc 100%);">
+                <div class="stat-icon" style="color: #198754;">
+                    <i class="bi bi-graph-up-arrow"></i>
+                </div>
+                <div class="stat-content">
+                    <h3 class="stat-value text-success"><?= formatRupiah($summary['total_laba']) ?></h3>
+                    <p class="stat-label">Laba Kotor</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-2 col-md-4 mb-3">
             <div class="stat-card stat-card-primary">
                 <div class="stat-icon">
                     <i class="bi bi-receipt"></i>
@@ -192,7 +239,7 @@ include 'includes/header.php';
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-2 col-md-4 mb-3">
             <div class="stat-card stat-card-info">
                 <div class="stat-icon">
                     <i class="bi bi-box-seam"></i>
@@ -204,14 +251,14 @@ include 'includes/header.php';
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
+        <div class="col-xl-2 col-md-4 mb-3">
             <div class="stat-card stat-card-warning">
                 <div class="stat-icon">
-                    <i class="bi bi-calculator"></i>
+                    <i class="bi bi-percent"></i>
                 </div>
                 <div class="stat-content">
-                    <h3 class="stat-value"><?= formatRupiah($summary['rata_rata']) ?></h3>
-                    <p class="stat-label">Rata-rata/Transaksi</p>
+                    <h3 class="stat-value"><?= $summary['total_omzet'] > 0 ? number_format(($summary['total_laba'] / $summary['total_omzet']) * 100, 1) : 0 ?>%</h3>
+                    <p class="stat-label">Margin Laba</p>
                 </div>
             </div>
         </div>
@@ -236,6 +283,7 @@ include 'includes/header.php';
                                     <th class="text-end text-primary">QRIS</th>
                                     <th class="text-end text-info">Transfer</th>
                                     <th class="text-end">Total</th>
+                                    <th class="text-end text-success">Laba</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -243,10 +291,12 @@ include 'includes/header.php';
                                 $totalTunai = 0;
                                 $totalQris = 0;
                                 $totalTransfer = 0;
+                                $totalLabaDaily = 0;
                                 foreach ($dailySummary as $day): 
                                     $totalTunai += $day['tunai'];
                                     $totalQris += $day['qris'];
                                     $totalTransfer += $day['transfer'];
+                                    $totalLabaDaily += $day['laba'];
                                 ?>
                                 <tr>
                                     <td><?= date('D, d M Y', strtotime($day['tanggal'])) ?></td>
@@ -263,6 +313,7 @@ include 'includes/header.php';
                                         <?= $day['transfer'] > 0 ? formatRupiah($day['transfer']) : '-' ?>
                                     </td>
                                     <td class="text-end fw-bold"><?= formatRupiah($day['omzet']) ?></td>
+                                    <td class="text-end fw-bold text-success"><?= formatRupiah($day['laba']) ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -274,6 +325,7 @@ include 'includes/header.php';
                                     <td class="text-end"><strong><?= formatRupiah($totalQris) ?></strong></td>
                                     <td class="text-end"><strong><?= formatRupiah($totalTransfer) ?></strong></td>
                                     <td class="text-end"><strong><?= formatRupiah($summary['total_omzet']) ?></strong></td>
+                                    <td class="text-end"><strong><?= formatRupiah($summary['total_laba']) ?></strong></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -346,6 +398,7 @@ include 'includes/header.php';
                                     <th>Produk</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Pendapatan</th>
+                                    <th class="text-end text-success">Laba</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -363,6 +416,7 @@ include 'includes/header.php';
                                     <td><?= escape($product['nama_produk']) ?></td>
                                     <td class="text-center"><span class="badge bg-success"><?= $product['total_terjual'] ?></span></td>
                                     <td class="text-end"><?= formatRupiah($product['total_pendapatan']) ?></td>
+                                    <td class="text-end text-success fw-bold"><?= formatRupiah($product['total_laba']) ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -392,6 +446,7 @@ include 'includes/header.php';
                                     <th>Kategori</th>
                                     <th class="text-center">Qty</th>
                                     <th class="text-end">Pendapatan</th>
+                                    <th class="text-end text-success">Laba</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -400,6 +455,7 @@ include 'includes/header.php';
                                     <td><?= escape($cat['kategori']) ?></td>
                                     <td class="text-center"><span class="badge bg-info"><?= $cat['total_terjual'] ?></span></td>
                                     <td class="text-end"><?= formatRupiah($cat['total_pendapatan']) ?></td>
+                                    <td class="text-end text-success fw-bold"><?= formatRupiah($cat['total_laba']) ?></td>
                                 </tr>
                                 <?php endforeach; ?>
                             </tbody>

@@ -40,15 +40,43 @@ function exportSummary($tanggalMulai, $tanggalAkhir, $format) {
                         WHERE DATE(tanggal_transaksi) BETWEEN ? AND ?", 
                         [$tanggalMulai, $tanggalAkhir]);
     
+    // Get laba summary
+    $labaSummary = fetchOne("SELECT 
+                                COALESCE(SUM(dt.harga_modal * dt.jumlah), 0) as total_modal,
+                                COALESCE(SUM(dt.laba), 0) as total_laba
+                            FROM detail_transaksi dt
+                            JOIN transaksi t ON dt.transaksi_id = t.id
+                            WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?", 
+                            [$tanggalMulai, $tanggalAkhir]);
+    
     $dailySummary = fetchAll("SELECT 
-                                DATE(tanggal_transaksi) as tanggal,
+                                DATE(t.tanggal_transaksi) as tanggal,
                                 COUNT(*) as jumlah_transaksi,
-                                SUM(total_harga) as omzet
-                             FROM transaksi 
-                             WHERE DATE(tanggal_transaksi) BETWEEN ? AND ?
-                             GROUP BY DATE(tanggal_transaksi)
+                                SUM(t.total_harga) as omzet
+                             FROM transaksi t
+                             WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?
+                             GROUP BY DATE(t.tanggal_transaksi)
                              ORDER BY tanggal", 
                              [$tanggalMulai, $tanggalAkhir]);
+    
+    // Get daily laba
+    $dailyLaba = fetchAll("SELECT 
+                              DATE(t.tanggal_transaksi) as tanggal,
+                              COALESCE(SUM(dt.laba), 0) as laba
+                           FROM detail_transaksi dt
+                           JOIN transaksi t ON dt.transaksi_id = t.id
+                           WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?
+                           GROUP BY DATE(t.tanggal_transaksi)", 
+                           [$tanggalMulai, $tanggalAkhir]);
+    
+    // Merge laba into daily summary
+    $labaByDate = [];
+    foreach ($dailyLaba as $dl) {
+        $labaByDate[$dl['tanggal']] = $dl['laba'];
+    }
+    foreach ($dailySummary as &$day) {
+        $day['laba'] = $labaByDate[$day['tanggal']] ?? 0;
+    }
     
     $filename = "laporan_ringkasan_{$tanggalMulai}_sd_{$tanggalAkhir}";
     
@@ -71,26 +99,30 @@ function exportSummary($tanggalMulai, $tanggalAkhir, $format) {
         echo "<table border='1'>";
         echo "<tr><th colspan='2'>RINGKASAN</th></tr>";
         echo "<tr><td>Total Omzet</td><td style='text-align:right'>" . formatRupiah($summary['total_omzet']) . "</td></tr>";
+        echo "<tr><td>Total Modal</td><td style='text-align:right'>" . formatRupiah($labaSummary['total_modal']) . "</td></tr>";
+        echo "<tr style='background:#d4edda'><td><strong>Total Laba</strong></td><td style='text-align:right'><strong>" . formatRupiah($labaSummary['total_laba']) . "</strong></td></tr>";
+        echo "<tr><td>Margin Laba</td><td style='text-align:right'>" . ($summary['total_omzet'] > 0 ? number_format(($labaSummary['total_laba'] / $summary['total_omzet']) * 100, 1) : 0) . "%</td></tr>";
         echo "<tr><td>Total Transaksi</td><td style='text-align:right'>" . number_format($summary['total_transaksi']) . "</td></tr>";
         echo "<tr><td>Total Item Terjual</td><td style='text-align:right'>" . number_format($summary['total_item']) . "</td></tr>";
-        echo "<tr><td>Rata-rata/Transaksi</td><td style='text-align:right'>" . formatRupiah($summary['rata_rata']) . "</td></tr>";
         echo "</table>";
         echo "<br>";
         
         // Daily Summary
         echo "<table border='1'>";
-        echo "<tr><th colspan='3'>RINGKASAN HARIAN</th></tr>";
-        echo "<tr><th>Tanggal</th><th>Jumlah Transaksi</th><th>Omzet</th></tr>";
+        echo "<tr><th colspan='4'>RINGKASAN HARIAN</th></tr>";
+        echo "<tr><th>Tanggal</th><th>Jumlah Transaksi</th><th>Omzet</th><th>Laba</th></tr>";
         foreach ($dailySummary as $day) {
             echo "<tr>";
             echo "<td>" . date('d/m/Y', strtotime($day['tanggal'])) . "</td>";
             echo "<td style='text-align:center'>" . $day['jumlah_transaksi'] . "</td>";
             echo "<td style='text-align:right'>" . formatRupiah($day['omzet']) . "</td>";
+            echo "<td style='text-align:right;color:green'>" . formatRupiah($day['laba']) . "</td>";
             echo "</tr>";
         }
-        echo "<tr><td><strong>TOTAL</strong></td>";
+        echo "<tr style='background:#d4edda'><td><strong>TOTAL</strong></td>";
         echo "<td style='text-align:center'><strong>" . $summary['total_transaksi'] . "</strong></td>";
-        echo "<td style='text-align:right'><strong>" . formatRupiah($summary['total_omzet']) . "</strong></td></tr>";
+        echo "<td style='text-align:right'><strong>" . formatRupiah($summary['total_omzet']) . "</strong></td>";
+        echo "<td style='text-align:right'><strong>" . formatRupiah($labaSummary['total_laba']) . "</strong></td></tr>";
         echo "</table>";
         
         echo "</body></html>";
@@ -107,18 +139,21 @@ function exportSummary($tanggalMulai, $tanggalAkhir, $format) {
         fputcsv($output, []);
         fputcsv($output, ['RINGKASAN']);
         fputcsv($output, ['Total Omzet', $summary['total_omzet']]);
+        fputcsv($output, ['Total Modal', $labaSummary['total_modal']]);
+        fputcsv($output, ['Total Laba', $labaSummary['total_laba']]);
+        fputcsv($output, ['Margin Laba (%)', $summary['total_omzet'] > 0 ? number_format(($labaSummary['total_laba'] / $summary['total_omzet']) * 100, 1) : 0]);
         fputcsv($output, ['Total Transaksi', $summary['total_transaksi']]);
         fputcsv($output, ['Total Item', $summary['total_item']]);
-        fputcsv($output, ['Rata-rata/Transaksi', $summary['rata_rata']]);
         fputcsv($output, []);
         fputcsv($output, ['RINGKASAN HARIAN']);
-        fputcsv($output, ['Tanggal', 'Jumlah Transaksi', 'Omzet']);
+        fputcsv($output, ['Tanggal', 'Jumlah Transaksi', 'Omzet', 'Laba']);
         
         foreach ($dailySummary as $day) {
             fputcsv($output, [
                 date('d/m/Y', strtotime($day['tanggal'])),
                 $day['jumlah_transaksi'],
-                $day['omzet']
+                $day['omzet'],
+                $day['laba']
             ]);
         }
         
@@ -209,14 +244,16 @@ function exportProductSales($tanggalMulai, $tanggalAkhir, $format) {
                             p.nama_produk,
                             COALESCE(k.nama_kategori, 'Tanpa Kategori') as kategori,
                             SUM(dt.jumlah) as total_terjual,
-                            SUM(dt.subtotal) as total_pendapatan
+                            SUM(dt.subtotal) as total_pendapatan,
+                            SUM(dt.harga_modal * dt.jumlah) as total_modal,
+                            SUM(dt.laba) as total_laba
                         FROM detail_transaksi dt
                         JOIN produk p ON dt.produk_id = p.id
                         LEFT JOIN kategori k ON p.kategori_id = k.id
                         JOIN transaksi t ON dt.transaksi_id = t.id
                         WHERE DATE(t.tanggal_transaksi) BETWEEN ? AND ?
                         GROUP BY dt.produk_id, p.kode_produk, p.nama_produk, k.nama_kategori
-                        ORDER BY total_terjual DESC", 
+                        ORDER BY total_laba DESC", 
                         [$tanggalMulai, $tanggalAkhir]);
     
     $filename = "laporan_penjualan_produk_{$tanggalMulai}_sd_{$tanggalAkhir}";
@@ -232,13 +269,19 @@ function exportProductSales($tanggalMulai, $tanggalAkhir, $format) {
         echo "<br>";
         
         echo "<table border='1'>";
-        echo "<tr><th>No</th><th>Kode</th><th>Nama Produk</th><th>Kategori</th><th>Qty Terjual</th><th>Pendapatan</th></tr>";
+        echo "<tr><th>No</th><th>Kode</th><th>Nama Produk</th><th>Kategori</th><th>Qty</th><th>Pendapatan</th><th>Modal</th><th>Laba</th><th>Margin</th></tr>";
         
         $totalQty = 0;
         $totalPendapatan = 0;
+        $totalModal = 0;
+        $totalLaba = 0;
         foreach ($products as $i => $p) {
             $totalQty += $p['total_terjual'];
             $totalPendapatan += $p['total_pendapatan'];
+            $totalModal += $p['total_modal'];
+            $totalLaba += $p['total_laba'];
+            $margin = $p['total_pendapatan'] > 0 ? ($p['total_laba'] / $p['total_pendapatan']) * 100 : 0;
+            
             echo "<tr>";
             echo "<td>" . ($i + 1) . "</td>";
             echo "<td>" . $p['kode_produk'] . "</td>";
@@ -246,12 +289,19 @@ function exportProductSales($tanggalMulai, $tanggalAkhir, $format) {
             echo "<td>" . escape($p['kategori']) . "</td>";
             echo "<td style='text-align:center'>" . $p['total_terjual'] . "</td>";
             echo "<td style='text-align:right'>" . formatRupiah($p['total_pendapatan']) . "</td>";
+            echo "<td style='text-align:right'>" . formatRupiah($p['total_modal']) . "</td>";
+            echo "<td style='text-align:right;color:green'>" . formatRupiah($p['total_laba']) . "</td>";
+            echo "<td style='text-align:right'>" . number_format($margin, 1) . "%</td>";
             echo "</tr>";
         }
         
-        echo "<tr><td colspan='4'><strong>TOTAL</strong></td>";
+        $totalMargin = $totalPendapatan > 0 ? ($totalLaba / $totalPendapatan) * 100 : 0;
+        echo "<tr style='background:#d4edda'><td colspan='4'><strong>TOTAL</strong></td>";
         echo "<td style='text-align:center'><strong>" . $totalQty . "</strong></td>";
-        echo "<td style='text-align:right'><strong>" . formatRupiah($totalPendapatan) . "</strong></td></tr>";
+        echo "<td style='text-align:right'><strong>" . formatRupiah($totalPendapatan) . "</strong></td>";
+        echo "<td style='text-align:right'><strong>" . formatRupiah($totalModal) . "</strong></td>";
+        echo "<td style='text-align:right'><strong>" . formatRupiah($totalLaba) . "</strong></td>";
+        echo "<td style='text-align:right'><strong>" . number_format($totalMargin, 1) . "%</strong></td></tr>";
         echo "</table>";
         echo "</body></html>";
     } else {
@@ -264,16 +314,20 @@ function exportProductSales($tanggalMulai, $tanggalAkhir, $format) {
         fputcsv($output, ['PENJUALAN PER PRODUK - ' . APP_NAME]);
         fputcsv($output, ['Periode: ' . date('d/m/Y', strtotime($tanggalMulai)) . ' s/d ' . date('d/m/Y', strtotime($tanggalAkhir))]);
         fputcsv($output, []);
-        fputcsv($output, ['No', 'Kode', 'Nama Produk', 'Kategori', 'Qty Terjual', 'Pendapatan']);
+        fputcsv($output, ['No', 'Kode', 'Nama Produk', 'Kategori', 'Qty Terjual', 'Pendapatan', 'Modal', 'Laba', 'Margin %']);
         
         foreach ($products as $i => $p) {
+            $margin = $p['total_pendapatan'] > 0 ? ($p['total_laba'] / $p['total_pendapatan']) * 100 : 0;
             fputcsv($output, [
                 $i + 1,
                 $p['kode_produk'],
                 $p['nama_produk'],
                 $p['kategori'],
                 $p['total_terjual'],
-                $p['total_pendapatan']
+                $p['total_pendapatan'],
+                $p['total_modal'],
+                $p['total_laba'],
+                number_format($margin, 1)
             ]);
         }
         

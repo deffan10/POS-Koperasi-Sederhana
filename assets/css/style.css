@@ -7,9 +7,9 @@
    CSS Variables
    ============================================= */
 :root {
-    --primary-color: #198754;
+    --primary-color: #5D4E6D;
     --secondary-color: #0d6efd;
-    --success-color: #198754;
+    --success-color: #5D4E6D;
     --danger-color: #dc3545;
     --warning-color: #ffc107;
     --info-color: #0dcaf0;
@@ -34,7 +34,7 @@ body {
    Login Page
    ============================================= */
 .login-page {
-    background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+    background: linear-gradient(135deg, #5D4E6D 0%, #8B7B9B 100%);
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -91,7 +91,7 @@ body {
 
 .login-form .form-control:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.15);
+    box-shadow: 0 0 0 3px rgba(93, 78, 109, 0.15);
 }
 
 .login-btn {
@@ -136,11 +136,11 @@ body {
    Welcome Card
    ============================================= */
 .welcome-card {
-    background: linear-gradient(135deg, #198754 0%, #20c997 100%);
+    background: linear-gradient(135deg, #5D4E6D 0%, #8B7B9B 100%);
     color: white;
     padding: 25px 30px;
     border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.3);
+    box-shadow: 0 4px 15px rgba(93, 78, 109, 0.3);
 }
 
 /* =============================================
@@ -191,7 +191,7 @@ body {
 }
 
 .stat-card-success .stat-icon {
-    background: rgba(25, 135, 84, 0.1);
+    background: rgba(93, 78, 109, 0.1);
     color: var(--success-color);
 }
 
@@ -500,6 +500,57 @@ body {
 
 .text-success {
     color: var(--success-color) !important;
+}
+
+/* Override Bootstrap success color to dark pastel purple */
+.btn-success {
+    background-color: #5D4E6D !important;
+    border-color: #5D4E6D !important;
+}
+
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:active {
+    background-color: #4A3D57 !important;
+    border-color: #4A3D57 !important;
+}
+
+.btn-outline-success {
+    color: #5D4E6D !important;
+    border-color: #5D4E6D !important;
+}
+
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+.btn-outline-success:active {
+    background-color: #5D4E6D !important;
+    border-color: #5D4E6D !important;
+    color: white !important;
+}
+
+.btn-check:checked + .btn-outline-success,
+.btn-check:active + .btn-outline-success {
+    background-color: #5D4E6D !important;
+    border-color: #5D4E6D !important;
+    color: white !important;
+}
+
+.bg-success {
+    background-color: #5D4E6D !important;
+}
+
+.table-success {
+    background-color: rgba(93, 78, 109, 0.15) !important;
+}
+
+.border-success {
+    border-color: #5D4E6D !important;
+}
+
+.alert-success {
+    background-color: rgba(93, 78, 109, 0.15);
+    color: #5D4E6D;
+    border-color: rgba(93, 78, 109, 0.3);
 }
 
 /* Print styles */
