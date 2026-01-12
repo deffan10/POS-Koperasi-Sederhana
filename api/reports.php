@@ -6,12 +6,26 @@
 
 require_once __DIR__ . '/../includes/database.php';
 require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/functions.php';
+
+// Helper function for report response with summary
+function reportJsonResponse($success, $message, $data = null, $summary = null) {
+    header('Content-Type: application/json');
+    $response = [
+        'success' => $success,
+        'message' => $message,
+        'data' => $data
+    ];
+    if ($summary !== null) {
+        $response['summary'] = $summary;
+    }
+    echo json_encode($response);
+    exit;
+}
 
 // Start session and check authentication
 $auth = new Auth();
 if (!$auth->isLoggedIn()) {
-    jsonResponse(false, 'Unauthorized');
+    reportJsonResponse(false, 'Unauthorized');
 }
 
 $db = Database::getInstance()->getConnection();
@@ -19,7 +33,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 try {
     if ($method !== 'GET') {
-        jsonResponse(false, 'Method not allowed');
+        reportJsonResponse(false, 'Method not allowed');
     }
     
     $date = isset($_GET['date']) ? $_GET['date'] : date('Y-m-d');
@@ -58,23 +72,8 @@ try {
     
     $summary['total_item'] = $itemSummary['total_item'];
     
-    jsonResponse(true, 'Report loaded', $transactions, $summary);
+    reportJsonResponse(true, 'Report loaded', $transactions, $summary);
     
 } catch (PDOException $e) {
-    jsonResponse(false, 'Database error: ' . $e->getMessage());
-}
-
-// Override jsonResponse for this file to include summary
-function jsonResponse($success, $message, $data = null, $summary = null) {
-    header('Content-Type: application/json');
-    $response = [
-        'success' => $success,
-        'message' => $message,
-        'data' => $data
-    ];
-    if ($summary !== null) {
-        $response['summary'] = $summary;
-    }
-    echo json_encode($response);
-    exit;
+    reportJsonResponse(false, 'Database error: ' . $e->getMessage());
 }
