@@ -1,0 +1,34 @@
+# POS Koperasi Al-Farmasi - Git Ignore
+
+# Environment & Config
+.env
+config/database.local.php
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+cache/
+
+# Uploads (keep .htaccess)
+assets/uploads/*
+!assets/uploads/.htaccess
+!assets/uploads/.gitkeep
+
+# Backups
+*.bak
+*.backup
+backups/

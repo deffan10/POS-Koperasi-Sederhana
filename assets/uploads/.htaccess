@@ -1,0 +1,20 @@
+# Hanya izinkan file gambar
+<FilesMatch "\.(?i:jpg|jpeg|png|gif)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Blok semua file lain
+<FilesMatch "^(?!.*\.(jpg|jpeg|png|gif)$)">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Nonaktifkan PHP execution
+<FilesMatch "\.php$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+
+# Nonaktifkan directory listing
+Options -Indexes
