@@ -35,6 +35,7 @@ $footerText = getSetting('receipt_footer', 'Terima kasih telah berbelanja');
 $paperWidth = (int)getSetting('receipt_paper_width', 58);
 $copies = (int)getSetting('receipt_copies', 1);
 $showLogo = (int)getSetting('receipt_show_logo', 1);
+$bold = (int)getSetting('receipt_bold', 1);
 
 if (!in_array($paperWidth, [55, 58, 80])) {
     $paperWidth = 58;
@@ -105,6 +106,8 @@ $pageTitle = 'Struk ' . escape($transaksi['no_transaksi']);
             margin-bottom: 20px;
             page-break-after: always;
             page-break-inside: avoid;
+            font-size: <?= $bold ? '12px' : '11px' ?>;
+            <?= $bold ? 'font-weight: bold;' : '' ?>
         }
         .receipt:last-child {
             page-break-after: auto;

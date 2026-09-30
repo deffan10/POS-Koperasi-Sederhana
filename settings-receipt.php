@@ -25,6 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $copies = intval($_POST['receipt_copies'] ?? 1);
         $autoPrint = isset($_POST['receipt_auto_print']) ? 1 : 0;
         $showLogo = isset($_POST['receipt_show_logo']) ? 1 : 0;
+        $bold = isset($_POST['receipt_bold']) ? 1 : 0;
 
         if (!in_array($paperWidth, [55, 58, 80])) {
             $paperWidth = 58;
@@ -44,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         saveSetting('receipt_copies', $copies);
         saveSetting('receipt_auto_print', $autoPrint);
         saveSetting('receipt_show_logo', $showLogo);
+        saveSetting('receipt_bold', $bold);
 
         $message = 'Pengaturan struk berhasil disimpan!';
         $messageType = 'success';
@@ -64,6 +66,7 @@ if (!in_array($paperWidth, [55, 58, 80])) {
 $copies = (int)getSetting('receipt_copies', 1);
 $autoPrint = (int)getSetting('receipt_auto_print', 1);
 $showLogo = (int)getSetting('receipt_show_logo', 1);
+$bold = (int)getSetting('receipt_bold', 1);
 
 include 'includes/header.php';
 ?>
@@ -154,6 +157,11 @@ include 'includes/header.php';
                                            id="receipt_show_logo" value="1" <?= $showLogo ? 'checked' : '' ?>>
                                     <label class="form-check-label" for="receipt_show_logo">Tampilkan logo</label>
                                 </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="receipt_bold"
+                                           id="receipt_bold" value="1" <?= $bold ? 'checked' : '' ?>>
+                                    <label class="form-check-label" for="receipt_bold">Cetak tebal (bold)</label>
+                                </div>
                             </div>
                         </div>
 
@@ -176,7 +184,7 @@ include 'includes/header.php';
                     $previewWidth = match($paperWidth) { 80 => '80mm', 58 => '58mm', default => '55mm' };
                     $previewChars = match($paperWidth) { 80 => 42, 58 => 32, default => 30 };
                     ?>
-                    <div style="display:inline-block; background:#fff; padding:8px 6px; width:<?= $previewWidth ?>; font-family:'Courier New',monospace; font-size:10px; color:#000; text-align:center;">
+                    <div style="display:inline-block; background:#fff; padding:8px 6px; width:<?= $previewWidth ?>; font-family:'Courier New',monospace; font-size:10px; font-weight:<?= $bold ? 'bold' : 'normal' ?>; color:#000; text-align:center;">
                         <?php if ($showLogo && $logo && file_exists($logo)): ?>
                         <img src="<?= escape($logo) ?>" alt="Logo" style="max-width:70%; max-height:50px;">
                         <?php endif; ?>
