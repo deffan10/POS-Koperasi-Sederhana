@@ -212,6 +212,24 @@ include 'includes/header.php';
                     </ul>
                 </div>
             </div>
+
+            <div class="card mt-3 border-warning">
+                <div class="card-body">
+                    <h6><i class="bi bi-magic me-2"></i>Print Tanpa Dialog (Silent Print)</h6>
+                    <p class="small text-muted mb-2">
+                        Browser web standar tidak boleh langsung mencetak tanpa dialog demi keamanan. Agar dialog print tidak muncul, gunakan salah satu cara:
+                    </p>
+                    <ul class="small text-muted mb-0">
+                        <li>
+                            <strong>Chrome Kiosk Printing (paling mudah):</strong> buat shortcut Chrome dengan target<br>
+                            <code>"C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk-printing --app="http://localhost/POS-Koperasi-Sederhana/pos.php"</code><br>
+                            Saat ini <code>window.print()</code> akan langsung cetak ke default printer tanpa dialog.
+                        </li>
+                        <li class="mt-2">
+                            <strong>QZ Tray / local print agent:</strong> install QZ Tray di PC kasir. Aplikasi dapat mengirim perintah ESC/POS mentah ke printer secara silent. (Perlu pengembangan integrasi QZ Tray.)</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>
