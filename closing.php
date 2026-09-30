@@ -87,11 +87,39 @@ function getBulanIndo($bulan) {
     return $namaBulan[$bulan] ?? '';
 }
 
-// Get all tutup buku records
+// Rentang periode tutup buku yang tersedia
+$periodeRange = fetchOne("SELECT 
+                            MIN(CONCAT(tahun, '-', LPAD(bulan, 2, '0'))) as min_periode,
+                            MAX(CONCAT(tahun, '-', LPAD(bulan, 2, '0'))) as max_periode
+                          FROM tutup_buku");
+
+$minPeriode = $periodeRange['min_periode'] ?? date('Y-m');
+$maxPeriode = $periodeRange['max_periode'] ?? date('Y-m');
+
+// Filter range periode (format: YYYY-MM)
+$filterMulai = $_GET['mulai'] ?? $minPeriode;
+$filterAkhir = $_GET['akhir'] ?? $maxPeriode;
+
+// Validasi format filter
+if (!preg_match('/^\d{4}-\d{2}$/', $filterMulai)) {
+    $filterMulai = $minPeriode;
+}
+if (!preg_match('/^\d{4}-\d{2}$/', $filterAkhir)) {
+    $filterAkhir = $maxPeriode;
+}
+if ($filterMulai > $filterAkhir) {
+    $temp = $filterMulai;
+    $filterMulai = $filterAkhir;
+    $filterAkhir = $temp;
+}
+
+// Get tutup buku records sesuai filter
 $tutupBukuList = fetchAll("SELECT tb.*, u.nama_lengkap 
                           FROM tutup_buku tb 
                           JOIN users u ON tb.user_id = u.id 
-                          ORDER BY tb.tahun DESC, tb.bulan DESC");
+                          WHERE CONCAT(tb.tahun, '-', LPAD(tb.bulan, 2, '0')) BETWEEN ? AND ?
+                          ORDER BY tb.tahun DESC, tb.bulan DESC", 
+                          [$filterMulai, $filterAkhir]);
 
 // Get available months for closing (yang belum ditutup)
 $currentYear = date('Y');
@@ -103,9 +131,16 @@ include 'includes/header.php';
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="bi bi-journal-check me-2"></i>Tutup Buku Bulanan</h2>
-        <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#tutupBukuModal">
-            <i class="bi bi-lock me-2"></i>Tutup Buku
-        </button>
+        <div class="d-flex gap-2">
+            <a href="closing-print.php?mulai=<?= urlencode($filterMulai) ?>&akhir=<?= urlencode($filterAkhir) ?>"
+               target="_blank" rel="noopener" id="btnPdfClosing"
+               class="btn btn-danger btn-lg">
+                <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF A4
+            </a>
+            <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#tutupBukuModal">
+                <i class="bi bi-lock me-2"></i>Tutup Buku
+            </button>
+        </div>
     </div>
     
     <?php if ($message): ?>
@@ -136,6 +171,30 @@ include 'includes/header.php';
         </div>
     </div>
     
+    <!-- Filter Rentang Periode -->
+    <div class="card mb-4 no-print">
+        <div class="card-body">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label for="filterMulai" class="form-label"><i class="bi bi-calendar-event me-1"></i>Dari Periode</label>
+                    <input type="month" class="form-control" id="filterMulai" name="mulai"
+                           value="<?= escape($filterMulai) ?>" min="<?= escape($minPeriode) ?>" max="<?= escape($maxPeriode) ?>" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="filterAkhir" class="form-label"><i class="bi bi-calendar-event me-1"></i>Sampai Periode</label>
+                    <input type="month" class="form-control" id="filterAkhir" name="akhir"
+                           value="<?= escape($filterAkhir) ?>" min="<?= escape($minPeriode) ?>" max="<?= escape($maxPeriode) ?>" required>
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                    <a href="closing.php" class="btn btn-outline-secondary">Reset</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Riwayat Tutup Buku -->
     <div class="card">
         <div class="card-header bg-white">
@@ -461,6 +520,20 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Update PDF link saat filter berubah
+const btnPdfClosing = document.getElementById('btnPdfClosing');
+if (btnPdfClosing) {
+    function updatePdfLink() {
+        const mulai = document.getElementById('filterMulai').value;
+        const akhir = document.getElementById('filterAkhir').value;
+        if (mulai && akhir) {
+            btnPdfClosing.href = `closing-print.php?mulai=${encodeURIComponent(mulai)}&akhir=${encodeURIComponent(akhir)}`;
+        }
+    }
+    document.getElementById('filterMulai').addEventListener('change', updatePdfLink);
+    document.getElementById('filterAkhir').addEventListener('change', updatePdfLink);
 }
 
 // Load preview on page load
