@@ -185,6 +185,15 @@ include 'includes/header.php';
                             </td>
                             <td>
                                 <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-info"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#detailLabaModal"
+                                            data-bulan="<?= $tb['bulan'] ?>"
+                                            data-tahun="<?= $tb['tahun'] ?>"
+                                            data-periode="<?= getBulanIndo($tb['bulan']) ?> <?= $tb['tahun'] ?>"
+                                            title="Detail Laba per Item">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
                                     <a href="api/export.php?format=excel&type=summary&tanggal_mulai=<?= sprintf('%04d-%02d-01', $tb['tahun'], $tb['bulan']) ?>&tanggal_akhir=<?= date('Y-m-t', strtotime(sprintf('%04d-%02d-01', $tb['tahun'], $tb['bulan']))) ?>" 
                                        class="btn btn-sm btn-outline-success" title="Download Excel">
                                         <i class="bi bi-file-earmark-excel"></i>
@@ -207,6 +216,43 @@ include 'includes/header.php';
                 <p class="mt-3">Belum ada data tutup buku</p>
             </div>
             <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detail Laba per Item -->
+<div class="modal fade" id="detailLabaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-graph-up me-2"></i>Detail Laba per Item - <span id="detailPeriode"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Rincian laba tiap produk berdasarkan metode pembayaran yang digunakan (tunai, QRIS, atau transfer).
+                </div>
+                <div class="table-responsive" style="max-height: 60vh;">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th>Produk</th>
+                                <th class="text-center">Qty</th>
+                                <th class="text-end">Laba Tunai</th>
+                                <th class="text-end">Laba QRIS</th>
+                                <th class="text-end">Laba Transfer</th>
+                                <th class="text-end">Total Laba</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailLabaBody"></tbody>
+                        <tfoot id="detailLabaFoot" class="table-light fw-bold"></tfoot>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            </div>
         </div>
     </div>
 </div>
@@ -334,6 +380,87 @@ function batalTutupBuku(id, periode) {
         document.getElementById('batalTutupId').value = id;
         document.getElementById('formBatalTutup').submit();
     }
+}
+
+// Detail laba per item berdasarkan metode pembayaran
+const detailLabaModal = document.getElementById('detailLabaModal');
+if (detailLabaModal) {
+    detailLabaModal.addEventListener('show.bs.modal', function (event) {
+        const btn = event.relatedTarget;
+        const bulan = btn.getAttribute('data-bulan');
+        const tahun = btn.getAttribute('data-tahun');
+        const periode = btn.getAttribute('data-periode');
+        document.getElementById('detailPeriode').textContent = periode;
+        loadDetailLaba(bulan, tahun);
+    });
+}
+
+async function loadDetailLaba(bulan, tahun) {
+    const body = document.getElementById('detailLabaBody');
+    const foot = document.getElementById('detailLabaFoot');
+    body.innerHTML = '<tr><td colspan="6" class="text-center py-3">Memuat data...</td></tr>';
+    foot.innerHTML = '';
+
+    try {
+        const response = await fetch(`api/closing-detail.php?bulan=${bulan}&tahun=${tahun}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            body.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-3">${escapeHtml(data.message || 'Gagal memuat data')}</td></tr>`;
+            return;
+        }
+
+        if (!data.items || data.items.length === 0) {
+            body.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">Tidak ada data penjualan</td></tr>';
+            return;
+        }
+
+        let totalQty = 0, totalTunai = 0, totalQris = 0, totalTransfer = 0, totalLaba = 0;
+
+        body.innerHTML = data.items.map(item => {
+            totalQty += parseFloat(item.total_qty);
+            totalTunai += parseFloat(item.laba_tunai);
+            totalQris += parseFloat(item.laba_qris);
+            totalTransfer += parseFloat(item.laba_transfer);
+            totalLaba += parseFloat(item.total_laba);
+
+            return `<tr>
+                <td><strong>${escapeHtml(item.kode_produk)}</strong><br><small>${escapeHtml(item.nama_produk)}</small></td>
+                <td class="text-center">${numberFormat(item.total_qty)}</td>
+                <td class="text-end ${item.laba_tunai > 0 ? 'text-success' : 'text-muted'}">${formatRupiah(item.laba_tunai)}</td>
+                <td class="text-end ${item.laba_qris > 0 ? 'text-primary' : 'text-muted'}">${formatRupiah(item.laba_qris)}</td>
+                <td class="text-end ${item.laba_transfer > 0 ? 'text-info' : 'text-muted'}">${formatRupiah(item.laba_transfer)}</td>
+                <td class="text-end fw-bold">${formatRupiah(item.total_laba)}</td>
+            </tr>`;
+        }).join('');
+
+        foot.innerHTML = `<tr>
+            <td>Total</td>
+            <td class="text-center">${numberFormat(totalQty)}</td>
+            <td class="text-end text-success">${formatRupiah(totalTunai)}</td>
+            <td class="text-end text-primary">${formatRupiah(totalQris)}</td>
+            <td class="text-end text-info">${formatRupiah(totalTransfer)}</td>
+            <td class="text-end">${formatRupiah(totalLaba)}</td>
+        </tr>`;
+    } catch (e) {
+        console.error('Error loading detail laba:', e);
+        body.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Terjadi kesalahan saat memuat data</td></tr>';
+    }
+}
+
+function formatRupiah(angka) {
+    return 'Rp ' + Number(angka).toLocaleString('id-ID');
+}
+
+function numberFormat(angka) {
+    return Number(angka).toLocaleString('id-ID');
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // Load preview on page load
