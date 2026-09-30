@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $autoPrint = isset($_POST['receipt_auto_print']) ? 1 : 0;
         $showLogo = isset($_POST['receipt_show_logo']) ? 1 : 0;
 
-        if (!in_array($paperWidth, [58, 80])) {
+        if (!in_array($paperWidth, [55, 58, 80])) {
             $paperWidth = 58;
         }
         if ($copies < 1) {
@@ -58,6 +58,9 @@ $address = getSetting('receipt_address', '');
 $phone = getSetting('receipt_phone', '');
 $footer = getSetting('receipt_footer', 'Terima kasih telah berbelanja');
 $paperWidth = (int)getSetting('receipt_paper_width', 58);
+if (!in_array($paperWidth, [55, 58, 80])) {
+    $paperWidth = 58;
+}
 $copies = (int)getSetting('receipt_copies', 1);
 $autoPrint = (int)getSetting('receipt_auto_print', 1);
 $showLogo = (int)getSetting('receipt_show_logo', 1);
@@ -129,6 +132,7 @@ include 'includes/header.php';
                             <div class="col-md-4 mb-3">
                                 <label class="form-label fw-bold">Lebar Kertas</label>
                                 <select class="form-select" name="receipt_paper_width">
+                                    <option value="55" <?= $paperWidth === 55 ? 'selected' : '' ?>>55 mm</option>
                                     <option value="58" <?= $paperWidth === 58 ? 'selected' : '' ?>>58 mm</option>
                                     <option value="80" <?= $paperWidth === 80 ? 'selected' : '' ?>>80 mm</option>
                                 </select>
@@ -168,34 +172,38 @@ include 'includes/header.php';
                     <h5 class="mb-0"><i class="bi bi-eye me-2"></i>Preview Struk</h5>
                 </div>
                 <div class="card-body text-center" style="background:#f1f1f1;">
-                    <div style="display:inline-block; background:#fff; padding:8px 6px; width:<?= $paperWidth === 80 ? '80mm' : '58mm' ?>; font-family:'Courier New',monospace; font-size:10px; color:#000; text-align:center;">
+                    <?php
+                    $previewWidth = match($paperWidth) { 80 => '80mm', 58 => '58mm', default => '55mm' };
+                    $previewChars = match($paperWidth) { 80 => 42, 58 => 32, default => 30 };
+                    ?>
+                    <div style="display:inline-block; background:#fff; padding:8px 6px; width:<?= $previewWidth ?>; font-family:'Courier New',monospace; font-size:10px; color:#000; text-align:center;">
                         <?php if ($showLogo && $logo && file_exists($logo)): ?>
                         <img src="<?= escape($logo) ?>" alt="Logo" style="max-width:70%; max-height:50px;">
                         <?php endif; ?>
                         <div style="font-weight:bold;"><?= escape($header ?: $appName) ?></div>
                         <?php if ($address): ?><div><?= escape($address) ?></div><?php endif; ?>
                         <?php if ($phone): ?><div>Telp: <?= escape($phone) ?></div><?php endif; ?>
-                        <div><?= str_repeat('-', $paperWidth === 80 ? 42 : 32) ?></div>
+                        <div><?= str_repeat('-', $previewChars) ?></div>
                         <div style="text-align:left;">
                             No&nbsp;&nbsp;&nbsp;: TRX202609300001<br>
                             Tgl&nbsp;&nbsp;: <?= date('d/m/Y H:i') ?><br>
                             Kasir: <?= escape($_SESSION['nama_lengkap']) ?><br>
                             Bayar: TUNAI
                         </div>
-                        <div><?= str_repeat('-', $paperWidth === 80 ? 42 : 32) ?></div>
+                        <div><?= str_repeat('-', $previewChars) ?></div>
                         <div style="text-align:left;">
                             Mie Instan Goreng<br>
                             &nbsp;&nbsp;2 x 3.500&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;7.000<br>
                             Teh Botol Sosro<br>
                             &nbsp;&nbsp;1 x 5.000&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.000
                         </div>
-                        <div><?= str_repeat('-', $paperWidth === 80 ? 42 : 32) ?></div>
+                        <div><?= str_repeat('-', $previewChars) ?></div>
                         <div style="text-align:left; font-weight:bold;">
                             TOTAL&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;12.000<br>
                             Tunai&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;20.000<br>
                             Kembali&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;8.000
                         </div>
-                        <div><?= str_repeat('-', $paperWidth === 80 ? 42 : 32) ?></div>
+                        <div><?= str_repeat('-', $previewChars) ?></div>
                         <div><?= nl2br(escape($footer)) ?></div>
                     </div>
                 </div>
@@ -207,7 +215,7 @@ include 'includes/header.php';
                     <ul class="small text-muted mb-0">
                         <li>Install driver printer CX58D di Windows.</li>
                         <li>Set printer thermal sebagai <strong>default printer</strong> di Windows.</li>
-                        <li>Di dialog print browser, pilih printer thermal dan ukuran kertas 58mm.</li>
+                        <li>Pilih lebar kertas sesuai printer (misal 55 mm, 58 mm, atau 80 mm) agar tidak kepotong.</li>
                         <li>Matikan header/footer browser agar struk bersih.</li>
                     </ul>
                 </div>

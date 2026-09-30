@@ -36,15 +36,15 @@ $paperWidth = (int)getSetting('receipt_paper_width', 58);
 $copies = (int)getSetting('receipt_copies', 1);
 $showLogo = (int)getSetting('receipt_show_logo', 1);
 
-if (!in_array($paperWidth, [58, 80])) {
+if (!in_array($paperWidth, [55, 58, 80])) {
     $paperWidth = 58;
 }
 if ($copies < 1 || $copies > 5) {
     $copies = 1;
 }
 
-$widthMm = $paperWidth === 80 ? '80mm' : '58mm';
-$lineWidth = $paperWidth === 80 ? 42 : 32;
+$widthMm = match($paperWidth) { 80 => '80mm', 58 => '58mm', default => '55mm' };
+$lineWidth = match($paperWidth) { 80 => 42, 58 => 32, default => 30 };
 
 function fmt($amount) {
     return number_format($amount, 0, ',', '.');
