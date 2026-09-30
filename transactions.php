@@ -106,10 +106,17 @@ include 'includes/header.php';
                             </td>
                             <td class="text-end fw-bold text-success"><?= formatRupiah($trx['total_harga']) ?></td>
                             <td>
-                                <button class="btn btn-sm btn-outline-primary" 
-                                        onclick="viewDetail(<?= $trx['id'] ?>)">
-                                    <i class="bi bi-eye"></i>
-                                </button>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="viewDetail(<?= $trx['id'] ?>)" title="Lihat Detail">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                    <a href="print-receipt.php?id=<?= $trx['id'] ?>" 
+                                       target="_blank" rel="noopener"
+                                       class="btn btn-sm btn-outline-secondary" title="Cetak Struk">
+                                        <i class="bi bi-printer"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -152,10 +159,9 @@ include 'includes/header.php';
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-                <!-- Print button for future development -->
-                <button type="button" class="btn btn-outline-primary" disabled title="Fitur akan tersedia di versi mendatang">
+                <a href="#" target="_blank" rel="noopener" id="btnPrintReceipt" class="btn btn-outline-primary">
                     <i class="bi bi-printer me-1"></i>Cetak Struk
-                </button>
+                </a>
             </div>
         </div>
     </div>
@@ -165,6 +171,11 @@ include 'includes/header.php';
 function viewDetail(id) {
     const modal = new bootstrap.Modal(document.getElementById('detailModal'));
     modal.show();
+    
+    const printBtn = document.getElementById('btnPrintReceipt');
+    if (printBtn) {
+        printBtn.href = 'print-receipt.php?id=' + id;
+    }
     
     fetch('api/transactions.php?action=detail&id=' + id)
         .then(response => response.json())

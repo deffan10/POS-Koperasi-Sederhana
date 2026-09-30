@@ -109,6 +109,7 @@ function saveTransaction() {
         echo json_encode([
             'success' => true,
             'message' => 'Transaksi berhasil disimpan',
+            'id' => $transaksiId,
             'no_transaksi' => $noTransaksi,
             'kembalian' => $kembalian
         ]);

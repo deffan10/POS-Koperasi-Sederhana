@@ -19,6 +19,13 @@ $produk = fetchAll("SELECT id, kode_produk, nama_produk, harga_jual, stok
 // Ambil settings pembayaran
 $paymentSettings = getPaymentSettings();
 
+// Ambil pengaturan struk
+$receiptSettings = [
+    'auto_print' => (int)getSetting('receipt_auto_print', 1),
+    'paper_width' => (int)getSetting('receipt_paper_width', 58),
+    'copies' => max(1, min(5, (int)getSetting('receipt_copies', 1)))
+];
+
 include 'includes/header.php';
 ?>
 
@@ -256,10 +263,10 @@ include 'includes/header.php';
                             </button>
                         </div>
                         
-                        <!-- Print Receipt (Future Development) -->
+                        <!-- Print Receipt Info -->
                         <div class="text-center mt-3">
                             <small class="text-muted">
-                                <i class="bi bi-printer me-1"></i>Fitur cetak struk akan tersedia di versi mendatang
+                                <i class="bi bi-printer me-1"></i>Struk akan otomatis tercetak jika printer default aktif
                             </small>
                         </div>
                     </div>
@@ -277,9 +284,12 @@ include 'includes/header.php';
                 <i class="bi bi-check-circle-fill text-success display-1"></i>
                 <h3 class="mt-3">Transaksi Berhasil!</h3>
                 <p class="text-muted">No. Transaksi: <strong id="transactionNumber">-</strong></p>
-                <div class="d-flex justify-content-center gap-2 mt-4">
+                <div class="d-flex justify-content-center gap-2 mt-4 flex-wrap">
                     <button type="button" class="btn btn-success btn-lg" data-bs-dismiss="modal" id="btnNewTransaction">
                         <i class="bi bi-plus-circle me-2"></i>Transaksi Baru
+                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" id="btnPrintReceipt" style="display:none;">
+                        <i class="bi bi-printer me-2"></i>Cetak Struk
                     </button>
                 </div>
             </div>
@@ -291,6 +301,7 @@ include 'includes/header.php';
 <script>
     const products = <?= json_encode($produk) ?>;
     const csrfToken = '<?= $csrfToken ?>';
+    const receiptSettings = <?= json_encode($receiptSettings) ?>;
     
     // Copy to clipboard function
     function copyToClipboard(text) {

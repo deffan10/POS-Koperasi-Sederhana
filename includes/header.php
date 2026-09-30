@@ -116,7 +116,7 @@ $appFavicon = getSetting('app_favicon', '');
                     <?php if (isAdmin()): ?>
                     <!-- Dropdown Pengaturan -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle <?= in_array(basename($_SERVER['PHP_SELF']), ['users.php', 'settings.php', 'settings-general.php']) ? 'active' : '' ?>" 
+                        <a class="nav-link dropdown-toggle <?= in_array(basename($_SERVER['PHP_SELF']), ['users.php', 'settings.php', 'settings-general.php', 'settings-receipt.php']) ? 'active' : '' ?>" 
                            href="#" data-bs-toggle="dropdown">
                             <i class="bi bi-gear me-1"></i> Pengaturan
                         </a>
@@ -135,6 +135,11 @@ $appFavicon = getSetting('app_favicon', '');
                             <li>
                                 <a class="dropdown-item <?= basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : '' ?>" href="settings.php">
                                     <i class="bi bi-credit-card me-2"></i>Pembayaran Non-Tunai
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item <?= basename($_SERVER['PHP_SELF']) == 'settings-receipt.php' ? 'active' : '' ?>" href="settings-receipt.php">
+                                    <i class="bi bi-printer me-2"></i>Struk Thermal
                                 </a>
                             </li>
                         </ul>

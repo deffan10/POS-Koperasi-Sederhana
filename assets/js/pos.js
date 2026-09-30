@@ -406,6 +406,14 @@ function calculateChange() {
     }
 }
 
+let lastTransactionId = null;
+let receiptPrintWindow = null;
+
+function openPrintReceipt(id) {
+    if (!id) return;
+    window.open('print-receipt.php?id=' + id, '_blank', 'width=420,height=720,scrollbars=yes');
+}
+
 // Save transaction
 async function saveTransaction() {
     if (cart.length === 0) {
@@ -427,6 +435,15 @@ async function saveTransaction() {
     btnSaveTransaction.disabled = true;
     btnSaveTransaction.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Menyimpan...';
     
+    // Pre-open print window if auto print is enabled (preserve user gesture)
+    if (receiptSettings && receiptSettings.auto_print) {
+        try {
+            receiptPrintWindow = window.open('about:blank', 'printReceipt', 'width=420,height=720,scrollbars=yes');
+        } catch (e) {
+            receiptPrintWindow = null;
+        }
+    }
+    
     try {
         const response = await fetch('api/transactions.php?action=save', {
             method: 'POST',
@@ -446,12 +463,31 @@ async function saveTransaction() {
         const data = await response.json();
         
         if (data.success) {
+            lastTransactionId = data.id;
             document.getElementById('transactionNumber').textContent = data.no_transaksi;
+            
+            const printBtn = document.getElementById('btnPrintReceipt');
+            if (printBtn) {
+                printBtn.style.display = '';
+                printBtn.onclick = () => openPrintReceipt(lastTransactionId);
+            }
+            
+            // Redirect pre-opened window to actual receipt, or open new one if not pre-opened
+            if (receiptPrintWindow && !receiptPrintWindow.closed) {
+                receiptPrintWindow.location.href = 'print-receipt.php?id=' + lastTransactionId;
+            } else if (receiptSettings && receiptSettings.auto_print) {
+                openPrintReceipt(lastTransactionId);
+            }
+            
             new bootstrap.Modal(document.getElementById('successModal')).show();
         } else {
             throw new Error(data.message || 'Terjadi kesalahan');
         }
     } catch (error) {
+        if (receiptPrintWindow && !receiptPrintWindow.closed) {
+            receiptPrintWindow.close();
+            receiptPrintWindow = null;
+        }
         showToast(error.message, 'danger');
         btnSaveTransaction.disabled = false;
         btnSaveTransaction.innerHTML = '<i class="bi bi-check-circle me-2"></i>Simpan Transaksi';
